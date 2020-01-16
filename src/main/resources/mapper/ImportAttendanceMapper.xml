@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.bd.dao.ImportAttendanceMapper">
+
+    <resultMap id="importAttendanceResult" type="cn.bd.entity.ImportAttendance">
+        <id column="id" property="id"/>
+        <result column="user_no" property="userNo"/>
+        <result column="user_name" property="userName"/>
+        <result column="user_serial" property="userSerial"/>
+        <result column="begin_date" property="beginDate"/>
+        <result column="end_date" property="endDate"/>
+        <result column="create_date" property="createDate"/>
+        <result column="work_status" property="workStatus"/>
+        <result column="is_exec" property="isExec"/>
+    </resultMap>
+
+    <!-- 导入考勤数据 -->
+    <insert id="importAttendanceData">
+        INSERT INTO
+            [dbo].[bd_analysis_import_attendance] ([user_no],[user_name],[begin_date],[end_date],[create_date],[work_status],[duration],[real_date])
+        VALUES
+        <foreach collection="list" separator="," item="item">
+            (#{item.userNo},#{item.userName},#{item.beginDate},#{item.endDate},GETDATE(),#{item.workStatus},Convert(decimal(18,1),datediff(minute,#{item.beginDate},#{item.endDate})/60.0),#{item.realDate})
+        </foreach>
+    </insert>
+
+    <!-- 执行岔分数据存储过程 -->
+    <select id="execAttendanceProc" resultType="java.lang.Integer">
+        exec proc_bd_analysis_doorRecord_attendance
+    </select>
+
+    <!-- 更新导入考勤数据 根据工号更新姓名和编号 -->
+    <!--<update id="updateImportAttendanceData">-->
+        <!--update i set i.user_name = u.user_lname,i.user_serial = u.user_serial-->
+        <!--from bd_analysis_import_attendance i-->
+        <!--inner join dt_user u on  i.user_no = u.user_no-->
+        <!--where isnull(i.user_name,'') = '' or isnull(i.user_serial,'') = ''-->
+    <!--</update>-->
+
+
+    <!-- 获取导入考勤数据 -->
+    <select id="getImportAttendanceList" resultMap="importAttendanceResult">
+        select
+            id,
+            user_no,
+            user_name,
+            user_serial,
+            begin_date,
+            end_date,
+            create_date,
+            is_exec,
+            work_status
+        from
+            bd_analysis_import_attendance
+        <where>
+            <if test="isExec!=null and isExec!=''">
+                is_exec = #{isExec}
+            </if>
+            <if test="searchName!=null and searchName != ''">
+                and (user_no like '%'+ #{searchName} +'%' or user_name like '%'+ #{searchName} +'%')
+            </if>
+            <if test="startDate!=null and finishDate!=null and startDate!='' and finishDate!=''">
+                and create_date <![CDATA[ >= ]]> #{startDate} and create_date <![CDATA[ < ]]> dateadd(day,1,#{finishDate})
+            </if>
+        </where>
+        order by begin_date desc,work_status desc
+    </select>
+
+</mapper>
